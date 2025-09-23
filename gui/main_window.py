@@ -142,8 +142,6 @@ class MainWindow(QMainWindow):
         tb.addAction(self.act_add_source)
         tb.addAction(self.act_remove_source)
 
-    # ---------- Sources CRUD ----------
-
     def _refresh_sources_view(self):
         self.source_tree.clear()
         sources = self.config.get("sources") or []
@@ -218,8 +216,6 @@ class MainWindow(QMainWindow):
         del sources[idx]
         self.config.save()
         self._refresh_sources_view()
-
-    # ---------- Run control ----------
 
     def on_start(self):
         sources = self.config.get("sources") or []
