@@ -10,11 +10,9 @@ Built with PyQt6 and pyqtgraph.
 - Each source opens its own window.  
 - An alert is raised if the queue spikes.  
 
-Older Oracle versions need the [Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html).  
-Set its path in `settings.json` or from the GUI under Settings.  
+Older Oracle versions need the [Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html). Set its path in `settings.json` or from the GUI under Settings.  
 
-Anomalies are detected with an [AutoRegressive (AR)](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) model.  
-Only upward spikes are considered. 
+Anomalies are detected with an [AutoRegressive (AR)](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) model. Only upward spikes are considered. 
 
 ## Screenshots
 
