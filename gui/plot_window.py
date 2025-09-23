@@ -1,4 +1,4 @@
-# core/plot_window.py
+# gui/plot_window.py
 from pathlib import Path
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
