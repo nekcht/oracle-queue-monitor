@@ -1,15 +1,14 @@
 # Oracle Queue Monitor
 
-**Multi-source Oracle DB queue monitor with real-time plotting and one-sided (upward) anomaly detection (PyQt6 + pyqtgraph).**
+A simple tool to monitor Oracle database queues with live charts and basic anomaly detection.  
+Built with PyQt6 and pyqtgraph.
 
-## Features
-- Monitor multiple Oracle DB sources simultaneously
-- Custom SQL queries per source (e.g., `SELECT COUNT(*) FROM …`)
-- Real-time plotting with PyQt6 + pyqtgraph
-- One-sided anomaly detection (flags only upward spikes)
-- Per-source polling frequency (configurable at runtime)
-- Configurable via `settings.json`
-- GUI for managing sources and settings
+## Case Flow
+1. Define one or more database sources (connection info + query).
+2. Each source runs a query that returns a single numeric value (e.g., `SELECT COUNT(*) ...`).
+3. Values are collected at the chosen polling interval.
+4. Results are shown in live plots, one window per source.
+5. An anomaly is flagged if the queue grows unusually fast (upward-only detection).
 
 ## Screenshots
 *(Add screenshots here once you take them!)*
@@ -20,6 +19,7 @@ git clone https://github.com/nekcht/oracle-queue-monitor.git
 cd oracle-queue-monitor
 
 python -m venv .venv
+
 # Windows
 .venv\Scripts\activate
 # macOS/Linux
@@ -30,15 +30,9 @@ python main.py
 ```
 
 ## Oracle Instant Client
-- If your database supports **Oracle Thin mode** (newer versions), no client installation is required.  
-- For **older Oracle versions** you will need the [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html).  
-- Download it, extract it, and provide its folder path in one of two ways:
-  1. In your `settings.json` under the key:
-     ```json
-     "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x"
-     ```
-     (replace the path and version with your actual installation).
-  2. Or, set it directly from the **GUI → Settings** dialog (no need to edit JSON manually).
+- Newer Oracle versions: works without client (Thin mode).  
+- Older versions: download [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) and set its folder in `settings.json` or in the GUI (Settings).
+
 
 ## Statistical Model
 We use a rolling **AutoRegressive (AR)** forecast to predict the next queue value and detect **upward-only** anomalies (drops are ignored since queues can naturally go to 0).  
@@ -62,38 +56,5 @@ is_anomaly if residual_up >
          quantile_q(positive_residual_history) )
 ```
 
-## Settings
-`settings.json` holds global settings and your sources. Each source has connection details, a SQL query that returns **exactly one numeric value**, and an optional per-source polling interval.
-
-Example:
-```json
-{
-  "window_size": 64,
-  "k_upper": 3.0,
-  "min_rel_increase": 0.25,
-  "q": 0.995,
-  "ew_alpha": 0.2,
-  "debounce": 1,
-  "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x",
-  "sources": [
-    {
-      "name": "DEMO",
-      "host": "demo"
-      "port": "demo",
-      "service_name": "demo",
-      "user": "demo",
-      "password": "demo",
-      "query": "SELECT COUNT(*) FROM A",
-      "polling_frequency": 5
-    }
-  ]
-}
-```
-
 ## License
 MIT — see [LICENSE](LICENSE).
-
-## Requirements
-- Python 3.10+
-- Install: `pip install -r requirements.txt`  
-  (PyQt6, pyqtgraph, numpy, statsmodels, oracledb)
