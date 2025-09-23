@@ -10,6 +10,13 @@ Built with PyQt6 and pyqtgraph.
 4. Results are shown in live plots, one window per source.
 5. An anomaly is flagged if the queue grows unusually fast (upward-only detection).
 
+## Notes
+The application may require the Oracle Instant Client for older Oracle versions.  
+It can be downloaded from [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) and the installation path must be set in `settings.json` or from the GUI under Settings.  
+
+For anomaly detection, the application uses a rolling [AutoRegressive (AR)](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) model to forecast expected queue values.  
+Only upward spikes are treated as anomalies, since queues can naturally drop to zero without indicating a problem.  
+
 ## Screenshots
 
 <table>
@@ -24,30 +31,3 @@ Built with PyQt6 and pyqtgraph.
     </td>
   </tr>
 </table>
-
-## Quickstart
-```bash
-git clone https://github.com/nekcht/oracle-queue-monitor.git
-cd oracle-queue-monitor
-
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-python main.py
-```
-
-## Oracle Instant Client
-- Newer Oracle versions: works without client (Thin mode).  
-- Older versions: download [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) and set its folder in `settings.json` or in the GUI (Settings).
-
-## Statistical Model
-The tool uses a rolling **AutoRegressive (AR)** model from [statsmodels](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) to forecast expected queue values.  
-Only upward spikes are considered anomalies.  
-
-## License
-MIT - see [LICENSE](LICENSE).
