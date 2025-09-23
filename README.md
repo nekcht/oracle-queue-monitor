@@ -53,12 +53,12 @@ We use a rolling **AutoRegressive (AR)** forecast to predict the next queue valu
 A point is flagged if the upward residual exceeds adaptive thresholds.
 
 **Parameters**
-- `window_size` — samples kept for forecasting/history. Larger = smoother, smaller = more reactive.
-- `k_upper` — σ-multiplier on an EWMA-based residual scale (z-like threshold).
-- `min_rel_increase` — minimum relative jump vs forecast (prevents tiny bumps from triggering).
-- `q` — empirical quantile (e.g., 0.995) of past positive residuals, acting as a learned upper bound.
-- `ew_alpha` — smoothing factor (0–1) for the residual EWMA scale (how fast it adapts).
-- `debounce` — suppress triggers for N ticks after one fires (reduces alert spam on plateaus).
+- `window_size`: samples kept for forecasting/history. Larger = smoother, smaller = more reactive.
+- `k_upper`: σ-multiplier on an EWMA-based residual scale (z-like threshold).
+- `min_rel_increase`: minimum relative jump vs forecast (prevents tiny bumps from triggering).
+- `q`: empirical quantile (e.g., 0.995) of past positive residuals, acting as a learned upper bound.
+- `ew_alpha`: smoothing factor (0–1) for the residual EWMA scale (how fast it adapts).
+- `debounce`: suppress triggers for N ticks after one fires (reduces alert spam on plateaus).
 
 **Trigger rule (one-sided):**
 ```
