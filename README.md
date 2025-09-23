@@ -26,21 +26,44 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
-cp settings.example.json settings.json  # edit with your DB info
 python main.py
 ```
 
 ## Oracle Instant Client
 - If your database supports **Oracle Thin mode** (newer versions), no client installation is required.  
 - For **older Oracle versions** you will need the [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html).  
-- Download it, extract it, and point to its folder in your `settings.json` under the key:
-  ```json
-  "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x"
+- Download it, extract it, and provide its folder path in one of two ways:
+  1. In your `settings.json` under the key:
+     ```json
+     "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x"
+     ```
+     (replace the path and version with your actual installation).
+  2. Or, set it directly from the **GUI → Settings** dialog (no need to edit JSON manually).
 
+## Statistical Model
+We use a rolling **AutoRegressive (AR)** forecast to predict the next queue value and detect **upward-only** anomalies (drops are ignored since queues can naturally go to 0).  
+A point is flagged if the upward residual exceeds adaptive thresholds.
+
+**Parameters**
+- `window_size` — samples kept for forecasting/history. Larger = smoother, smaller = more reactive.
+- `k_upper` — σ-multiplier on an EWMA-based residual scale (z-like threshold).
+- `min_rel_increase` — minimum relative jump vs forecast (prevents tiny bumps from triggering).
+- `q` — empirical quantile (e.g., 0.995) of past positive residuals, acting as a learned upper bound.
+- `ew_alpha` — smoothing factor (0–1) for the residual EWMA scale (how fast it adapts).
+- `debounce` — suppress triggers for N ticks after one fires (reduces alert spam on plateaus).
+
+**Trigger rule (one-sided):**
+```
+residual_up = max(0, actual - forecast)
+
+is_anomaly if residual_up >
+    max( k_upper * ew_std,
+         min_rel_increase * max(forecast, 1),
+         quantile_q(positive_residual_history) )
+```
 
 ## Settings
-The `settings.json` file stores global settings (like `instant_client_path`) and your list of DB sources.  
-Each source entry contains connection details, query, and polling frequency.
+`settings.json` holds global settings and your sources. Each source has connection details, a SQL query that returns **exactly one numeric value**, and an optional per-source polling interval.
 
 Example:
 ```json
@@ -51,7 +74,7 @@ Example:
   "q": 0.995,
   "ew_alpha": 0.2,
   "debounce": 1,
-  "instant_client_path": "C:\\oracle\\instantclient_23_9",
+  "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x",
   "sources": [
     {
       "name": "DEMO",
@@ -69,3 +92,8 @@ Example:
 
 ## License
 MIT — see [LICENSE](LICENSE).
+
+## Requirements
+- Python 3.10+
+- Install: `pip install -r requirements.txt`  
+  (PyQt6, pyqtgraph, numpy, statsmodels, oracledb)
