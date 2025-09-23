@@ -3,19 +3,18 @@
 A simple tool to monitor Oracle database queues with live charts and basic anomaly detection.  
 Built with PyQt6 and pyqtgraph.
   
-## Case Flow
-1. Define one or more database sources (connection info + query).
-2. Each source runs your custom query that returns a single numeric value (e.g., `SELECT COUNT(*) ...`).
-3. Values are collected at the chosen polling interval.
-4. Results are shown in live plots, one window per source.
-5. An anomaly is flagged if the queue grows unusually fast (upward-only detection).
+## How it works
+- Add one or more sources with connection info and a query.  
+- Each query must return a single number (e.g. `SELECT COUNT(*) ...`).  
+- Values are fetched at the polling interval and shown in live plots.  
+- Each source opens its own window.  
+- An alert is raised if the queue spikes.  
 
-## Notes
-The application may require the Oracle Instant Client for older Oracle versions.  
-It can be downloaded from [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html) and the installation path must be set in `settings.json` or from the GUI under Settings.  
+Older Oracle versions need the [Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html).  
+Set its path in `settings.json` or from the GUI under Settings.  
 
-For anomaly detection, the application uses a rolling [AutoRegressive (AR)](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) model to forecast expected queue values.  
-Only upward spikes are treated as anomalies, since queues can naturally drop to zero without indicating a problem.  
+Anomalies are detected with an [AutoRegressive (AR)](https://www.statsmodels.org/stable/generated/statsmodels.tsa.ar_model.AutoReg.html) model.  
+Only upward spikes are considered. 
 
 ## Screenshots
 
