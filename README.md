@@ -35,8 +35,8 @@ python main.py
 - For **older Oracle versions** you will need the [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client/downloads.html).  
 - Download it, extract it, and point to its folder in your `settings.json` under the key:
   ```json
-  "instant_client_path": "C:\\oracle\\instantclient_23_9"
-  ```
+  "instant_client_path": "C:\\path\\to\\your\\instantclient_xx_x"
+
 
 ## Settings
 The `settings.json` file stores global settings (like `instant_client_path`) and your list of DB sources.  
@@ -56,7 +56,7 @@ Example:
     {
       "name": "DEMO",
       "host": "demo"
-      "port": demo,
+      "port": "demo",
       "service_name": "demo",
       "user": "demo",
       "password": "demo",
