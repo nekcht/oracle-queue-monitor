@@ -11,7 +11,15 @@ Built with PyQt6 and pyqtgraph.
 5. An anomaly is flagged if the queue grows unusually fast (upward-only detection).
 
 ## Screenshots
-*(Add screenshots here once you take them!)*
+
+Main window:
+
+![Main Window](docs/main_window.jpg)
+
+Live plot:
+
+![Live Plot](docs/plot.png)
+
 
 ## Quickstart
 ```bash
