@@ -1,7 +1,6 @@
 # Oracle Queue Monitor
 
 A simple tool to monitor Oracle database queues with live charts and basic anomaly detection.  
-Built with PyQt6 and pyqtgraph.
   
 ## How it works
 - Add one or more sources with connection info and a query.  
