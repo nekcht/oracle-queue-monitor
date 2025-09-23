@@ -16,7 +16,7 @@
 
 ## Quickstart
 ```bash
-git clone https://github.com/<your-username>/oracle-queue-monitor.git
+git clone https://github.com/nekcht/oracle-queue-monitor.git
 cd oracle-queue-monitor
 
 python -m venv .venv
