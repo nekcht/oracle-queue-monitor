@@ -5,7 +5,7 @@ Built with PyQt6 and pyqtgraph.
 
 ## Case Flow
 1. Define one or more database sources (connection info + query).
-2. Each source runs a query that returns a single numeric value (e.g., `SELECT COUNT(*) ...`).
+2. Each source runs your custom query that returns a single numeric value (e.g., `SELECT COUNT(*) ...`).
 3. Values are collected at the chosen polling interval.
 4. Results are shown in live plots, one window per source.
 5. An anomaly is flagged if the queue grows unusually fast (upward-only detection).
