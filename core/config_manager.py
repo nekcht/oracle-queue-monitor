@@ -34,10 +34,10 @@ class AppConfig:
             except Exception as e:
                 print(f"Warning: failed to read settings.json ({e}). Using defaults.")
 
-        # ---- Ensure 'sources' key exists
+        # Ensure 'sources' key exists
         self.data.setdefault("sources", [])
 
-        # ── hoist first per-source instant_client_path to global if global empty
+        # hoist first per-source instant_client_path to global if global empty
         if not self.data.get("instant_client_path"):
             for src in self.data["sources"]:
                 icp = src.pop("instant_client_path", "")
@@ -59,7 +59,7 @@ class AppConfig:
             src.pop("table_name", None)
             src.pop("column_name", None)
 
-        # --- Backward compat: if old anomaly_k exists, map to k_upper once
+        # Backward compat: if old anomaly_k exists, map to k_upper once
         if "anomaly_k" in self.data and "k_upper" not in self.data:
             try:
                 self.data["k_upper"] = float(self.data.get("anomaly_k", 3.0))
