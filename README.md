@@ -12,13 +12,19 @@ Built with PyQt6 and pyqtgraph.
 
 ## Screenshots
 
-Main window:
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/main_window.jpg" alt="Main Window" width="400"/><br/>
+      <sub>Main Window</sub>
+    </td>
+    <td align="center">
+      <img src="docs/plot.png" alt="Live Plot" width="400"/><br/>
+      <sub>Live Plot</sub>
+    </td>
+  </tr>
+</table>
 
-![Main Window](docs/main_window.jpg)
-
-Live plot:
-
-![Live Plot](docs/plot.png)
 
 
 ## Quickstart
