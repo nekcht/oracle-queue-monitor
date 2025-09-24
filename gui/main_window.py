@@ -1,7 +1,7 @@
 # gui/main_window.py
 from pathlib import Path
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction, QIcon, QPixmap
 from core import __version__
 from core.config_manager import AppConfig
 from core.monitor_controller import MonitorController
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QLabel, QVBoxLayout, QHBoxLayout, QStatusBar,
     QMenuBar, QToolBar, QTreeWidget, QTreeWidgetItem, QMessageBox
 )
+from functools import partial
 
 
 class MainWindow(QMainWindow):
@@ -235,8 +236,6 @@ class MainWindow(QMainWindow):
 
         # Start each source (one plot window per source)
         for i, s in enumerate(sources):
-
-
             sid = i
             if sid in self.controllers:
                 continue  # already running
@@ -245,11 +244,6 @@ class MainWindow(QMainWindow):
 
             plot = PlotWindow(initial_poll_sec=current_freq, title=f"Live: {s.get('name', 'Source')}")
             plot.closed.connect(lambda sid=sid: self._stop_source(sid))
-            plot.poll_changed.connect(
-                lambda newf, name=s.get('name', 'Source'):
-                self._on_plot_poll_change(name, newf)
-            )
-
             plot.show()
             self.plots[sid] = plot
 
@@ -261,7 +255,8 @@ class MainWindow(QMainWindow):
             )
             ctrl.start()
 
-            plot.poll_changed.connect(ctrl.worker.set_freq)  # updates the worker (thread-safe)
+            plot.poll_changed.connect(ctrl.worker.set_freq)
+            plot.poll_changed.connect(partial(self._status_poll_msg, s.get('name', 'Source')))
 
             # also show messages (both in main bar and inside the plot)
             plot.poll_changed.connect(
@@ -289,6 +284,12 @@ class MainWindow(QMainWindow):
             plot.show_info(f"Polling will change to {new_freq}s after current cycle.")
         except Exception:
             pass
+
+    def _status_poll_msg(self, source_name: str, new_freq: int):
+        self.status_bar.showMessage(
+            f"Polling for '{source_name}' will change to {int(new_freq)}s after the current cycle.",
+            4000
+        )
 
     def on_stop(self):
         # stop all
@@ -358,14 +359,31 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("Settings saved. Polling updated now; model params & client path apply on new connections.", 7000)
 
     def _show_about(self):
-        QMessageBox.information(
-            self,
-            "About Oracle Monitor",
-            f"Oracle Monitor v{__version__}\n\n"
-            "Multi-source queue monitoring with adaptive, one-sided anomaly detection.\n\n"
-            "Built with PyQt6 & pyqtgraph.\n\n"
-            "Nektarios Christou @ nekcht@gmail.com"
+        about = QMessageBox(self)
+        about.setWindowTitle("About Oracle Queue Monitor")
+
+        # Try loading logo from resources
+        res_path = Path(__file__).resolve().parent.parent / "resources"
+        logo_path = res_path / "app.png"  # or "logo.png" if you add one
+        if logo_path.exists():
+            pixmap = QPixmap(str(logo_path)).scaledToHeight(64)
+            about.setIconPixmap(pixmap)
+        else:
+            about.setIcon(QMessageBox.Icon.Information)
+
+        # Professional text with some formatting
+        about.setText(
+            f"<b>Oracle Queue Monitor v{__version__}</b><br><br>"
+            "Monitor multiple Oracle DB queues with live charts and "
+            "adaptive one-sided anomaly detection.<br><br>"
+            "Built with <b>PyQt6</b> and <b>pyqtgraph</b>.<br><br>"
+            "<small>© 2025 Nektarios Christou<br>"
+            "<a href='mailto:nekcht@gmail.com'>nekcht@gmail.com</a></small>"
         )
+        about.setTextFormat(Qt.TextFormat.RichText)  # enable HTML formatting
+        about.setStandardButtons(QMessageBox.StandardButton.Ok)
+
+        about.exec()
 
     def closeEvent(self, e):
         try:
