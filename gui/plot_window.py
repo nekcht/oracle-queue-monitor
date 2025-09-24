@@ -15,17 +15,38 @@ class IntAxis(pg.AxisItem):
         return [str(int(round(v))) for v in values]
 
 
-def _nice_step(vrange, target_ticks=6):
-    """Return a 'nice' major step for the given data range."""
-    if vrange <= 0 or math.isinf(vrange) or math.isnan(vrange):
-        return 1
-    raw = vrange / max(1, target_ticks)
-    pow10 = 10 ** math.floor(math.log10(raw))
-    for m in (1, 2, 5, 10):
-        step = m * pow10
+class ClockAxis(pg.AxisItem):
+    """Bottom axis: UNIX timestamps -> local 'HH:MM'. Disables SI prefixes."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            self.enableAutoSIPrefix(False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _fmt(ts: float) -> str:
+        tm = time.localtime(ts)
+        return time.strftime("%H:%M", tm)
+
+    def tickStrings(self, values, scale, spacing):
+        return [self._fmt(v) for v in values]
+
+
+def _nice_minute_step(span_sec: float, target_ticks=6) -> int:
+    """Pick a 'nice' minute-based step (in seconds) for the given span (seconds)."""
+    if span_sec <= 0 or math.isinf(span_sec) or math.isnan(span_sec):
+        return 60
+    raw = span_sec / max(1, target_ticks)
+    # prefer minute-ish steps
+    candidates = [
+        30, 60, 120, 300, 600, 900, 1200, 1800, 3600, 7200
+    ]  # 30s, 1m, 2m, 5m, 10m, 15m, 20m, 30m, 1h, 2h
+    for step in candidates:
         if raw <= step:
             return step
-    return pow10  # fallback
+    # fallback larger steps
+    return int(max(3600, round(raw / 300) * 300))  # multiples of 5m
 
 
 class PlotWindow(QDialog):
@@ -34,12 +55,13 @@ class PlotWindow(QDialog):
       - Blue line = actual values (dot on first sample)
       - Yellow dashed line = forecast
       - Red dots = anomalies
-      - Integer-only Y axis
-      - Legend anchored top-right
-      - Top bar shows 'Current:' and lets you change Polling (sec) for THIS plot only
+      - Left axis integer-only
+      - Bottom axis shows local time 'HH:MM'
+      - Legend top-right
+      - Top bar shows 'Current:' and per-plot Polling (sec)
     """
     closed = pyqtSignal()
-    poll_changed = pyqtSignal(int)  # emit when user changes polling sec in the plot
+    poll_changed = pyqtSignal(int)  # emitted when user changes polling sec in the plot
 
     def __init__(self, max_points=500, initial_poll_sec=5, title="Live Record Counts"):
         super().__init__()
@@ -47,10 +69,9 @@ class PlotWindow(QDialog):
         res_path = Path(__file__).resolve().parent.parent / "resources"
         self.setWindowIcon(QIcon(str(res_path / "app.png")))
         self.max_points = max_points
-        self.t0 = time.time()
 
         # Buffers
-        self.timestamps = deque(maxlen=max_points)
+        self.timestamps = deque(maxlen=max_points)  # UNIX seconds
         self.values = deque(maxlen=max_points)
         self.anoms = deque(maxlen=max_points)
         self.forecasts = deque(maxlen=max_points)
@@ -68,7 +89,8 @@ class PlotWindow(QDialog):
         self.poll_spin = QSpinBox()
         self.poll_spin.setRange(1, 3600)
         self.poll_spin.setValue(int(initial_poll_sec or 5))
-        self.poll_spin.valueChanged.connect(lambda v: self.poll_changed.emit(int(v)))
+        self.poll_spin.valueChanged.connect(self._on_poll_changed)
+
         top.addWidget(self.poll_spin)
         root.addLayout(top)
 
@@ -82,7 +104,10 @@ class PlotWindow(QDialog):
         self.plot_widget = pg.PlotWidget(
             background='w',
             title=title,
-            axisItems={'left': IntAxis(orientation='left')}
+            axisItems={
+                'left':   IntAxis(orientation='left'),
+                'bottom': ClockAxis(orientation='bottom')
+            }
         )
         root.addWidget(self.plot_widget)
 
@@ -109,46 +134,46 @@ class PlotWindow(QDialog):
         self.scatter_anom = pg.ScatterPlotItem(size=10, brush='r', pen=pg.mkPen(width=0))
         self.plot_widget.addItem(self.scatter_anom)
 
-        # Softer, less-dense grid (alpha + we control tick spacing each update)
+        # Softer grid
         self.plot_widget.showGrid(x=True, y=True, alpha=0.12)
 
         # Labels
         self.plot_widget.setLabel('left', 'Count')
-        self.plot_widget.setLabel('bottom', 'Time', units='s')
+        self.plot_widget.setLabel('bottom', 'Time (HH:MM)')
 
     def show_info(self, text: str, msec: int = 3000):
         self.info_msg.setText(text)
         self.info_msg.setVisible(True)
         QTimer.singleShot(msec, lambda: self.info_msg.setVisible(False))
 
-    def _retick(self, x_vals):
-        """Loosen grid/ticks based on current ranges."""
-        pi = self.plot_widget.getPlotItem()
+    def _on_poll_changed(self, v: int):
+        # show message only in THIS window
+        self.show_info(f"Polling will change to {int(v)}s after the current cycle.")
+        # then emit to whoever is listening (main window/worker)
+        self.poll_changed.emit(int(v))
 
+    def _retick(self, x_ts):
+        """Relax grid/ticks based on current time span (in seconds)."""
         # Y ticks
         if self.values:
             y_min, y_max = min(self.values), max(self.values)
-            if y_min == y_max:
-                step_y = 1
-            else:
-                step_y = _nice_step(y_max - y_min, target_ticks=6)
-            self.plot_widget.getAxis('left').setTickSpacing(major=step_y, minor=max(1, step_y/5))
+            step_y = 1 if y_min == y_max else max(1, int(round((y_max - y_min) / 6)) or 1)
+            self.plot_widget.getAxis('left').setTickSpacing(major=step_y, minor=max(1, step_y // 5))
 
-        # X ticks
-        if x_vals:
-            span = (x_vals[-1] - x_vals[0]) if len(x_vals) > 1 else max(1.0, x_vals[-1])
-            step_x = _nice_step(span, target_ticks=6)
-            self.plot_widget.getAxis('bottom').setTickSpacing(major=step_x, minor=max(0.5, step_x/5))
+        # X ticks: choose nice minute-based step
+        if x_ts:
+            span = (x_ts[-1] - x_ts[0]) if len(x_ts) > 1 else 60.0
+            step_x = _nice_minute_step(span, target_ticks=6)
+            self.plot_widget.getAxis('bottom').setTickSpacing(major=step_x, minor=max(60, step_x // 5 or 60))
 
     def add_point(self, timestamp, value, is_anomaly=False, forecast=None):
-        # Update buffers
+        # Update buffers (timestamp is UNIX seconds from controller)
         self.timestamps.append(float(timestamp))
         self.values.append(float(value))
         self.anoms.append(bool(is_anomaly))
         self.forecasts.append(float(forecast) if forecast is not None else float('nan'))
 
-        # X axis in seconds since window opened
-        x = [t - self.t0 for t in self.timestamps]
+        x = list(self.timestamps)  # real timestamps on X
 
         # Update lines
         self.line_actual.setData(x, list(self.values))
@@ -158,7 +183,7 @@ class PlotWindow(QDialog):
         pts = [{'pos': (xi, v), 'brush': 'r'} for xi, (v, a) in zip(x, zip(self.values, self.anoms)) if a]
         self.scatter_anom.setData(pts)
 
-        # Y-range handling: if flat, expand slightly; else autorange
+        # Y-range handling
         pi = self.plot_widget.getPlotItem()
         y_min = min(self.values)
         y_max = max(self.values)
@@ -168,10 +193,10 @@ class PlotWindow(QDialog):
         else:
             pi.enableAutoRange(axis='y', enable=True)
 
-        # Retick to relax grid
+        # Retick for cleaner grid
         self._retick(x)
 
-        # Big "Current" readout
+        # Current value readout
         cur_txt = int(value) if float(value).is_integer() else round(float(value), 2)
         self.current_label.setText(f"Current: {cur_txt}")
 
