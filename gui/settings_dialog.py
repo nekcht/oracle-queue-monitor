@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox, QLineEdit, QPushButton, QFileDialog, QGroupBox, QFormLayout
 )
 
+
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, cfg=None):
         super().__init__(parent)
