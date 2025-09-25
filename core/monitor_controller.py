@@ -1,10 +1,8 @@
-# core/monitor_controller.py
-from PyQt6.QtCore import QObject
+from PyQt6.QtCore import QObject, QTimer, QThread, pyqtSignal, pyqtSlot
 from core.db_connector import DBConnector
 from core.anomaly_detector import AnomalyDetector
-from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
+from core.logger import logger
 import time
-
 
 class Worker(QThread):
     tick = pyqtSignal(float, int, bool, object)
@@ -18,16 +16,16 @@ class Worker(QThread):
         self.freq_s = max(1, int(freq_s))
         self.source_name = source_name
         self._running = True
-        self._freq_changed = False  # realign schedule after change
+        self._freq_changed = False
 
     @pyqtSlot(int)
     def set_freq(self, new_freq: int):
-        """Thread-safe: can be called from GUI thread; queued to worker thread."""
         self.freq_s = max(1, int(new_freq))
         self._freq_changed = True
+        logger.info(f"[{self.source_name}] Polling change requested: {self.freq_s}s")
 
     def run(self):
-        # immediate first run, then fixed cadence using monotonic time
+        logger.info(f"[{self.source_name}] Worker started | freq={self.freq_s}s")
         next_time = time.monotonic()
         while self._running:
             try:
@@ -35,11 +33,14 @@ class Worker(QThread):
                 cnt = int(val) if float(val).is_integer() else float(val)
                 ts = float(time.time())
                 is_anom, forecast = self.detector.add_and_predict(cnt)
+                if is_anom:
+                    logger.warning(f"[{self.source_name}] Anomaly | value={cnt} forecast={forecast}")
                 self.tick.emit(ts, int(cnt), bool(is_anom), (None if forecast is None else float(forecast)))
             except Exception as e:
-                self.error.emit(f"[{self.source_name}] {e}")
+                msg = f"[{self.source_name}] {e}"
+                logger.exception(msg)
+                self.error.emit(msg)
 
-            # schedule next tick
             next_time += self.freq_s
             now = time.monotonic()
             if self._freq_changed or next_time <= now:
@@ -51,50 +52,69 @@ class Worker(QThread):
                 step = min(200, delay_ms)
                 self.msleep(step)
                 delay_ms -= step
+        logger.info(f"[{self.source_name}] Worker stopped")
 
     def stop(self):
+        logger.info(f"[{self.source_name}] Stop requested")
         self._running = False
 
 
 class MonitorController(QObject):
     def __init__(self, app_config, source_cfg, update_callback=None, error_callback=None):
         super().__init__()
-        self.app_config = app_config
-        self.source_cfg = source_cfg
+        self.config = app_config
+        self.source = source_cfg
         self.update_callback = update_callback
         self.error_callback = error_callback
-        self.db = None; self.worker = None
-        self.source_name = source_cfg.get('name', 'Source')
-
-        cfg = app_config.data
+        self.db = None
         self.detector = AnomalyDetector(
-            window_size=int(cfg.get('window_size', 64)),
-            k_upper=float(cfg.get('k_upper', 3.0)),
-            min_rel_increase=float(cfg.get('min_rel_increase', 0.25)),
-            q=float(cfg.get('q', 0.995)),
-            ew_alpha=float(cfg.get('ew_alpha', 0.2)),
-            debounce=int(cfg.get('debounce', 1)),
+            window_size=int(self.config.get('window_size') or 20),
+            k=float(self.config.get('k_upper') or 3.0)
         )
+        self.worker = None
 
     def start(self):
-        cfg = self.source_cfg
-        freq = int(cfg.get('polling_frequency') or self.app_config.get('polling_frequency') or 5)
-
+        s = self.source
+        logger.info(f"Start source | { {k: (v if k!='password' else '***') for k,v in s.items()} }")
         self.db = DBConnector(
-            host=cfg['host'], port=cfg['port'], service_name=cfg['service_name'],
-            user=cfg['user'], password=cfg['password'],
-            instant_client_path=self.app_config.get('instant_client_path') or ""
+            s.get('host'), s.get('port'), s.get('service_name'),
+            s.get('user'), s.get('password'),
+            instant_client_path=self.config.get('instant_client_path')
         )
         self.worker = Worker(
-            db=self.db, query=cfg['query'], detector=self.detector,
-            freq_s=freq, source_name=self.source_name
+            db=self.db,
+            query=s.get('query', ''),
+            detector=self.detector,
+            freq_s=int(s.get('polling_frequency') or 5),
+            source_name=s.get('name', 'Source')
         )
-        self.worker.tick.connect(lambda ts, c, a, f: self.update_callback and self.update_callback(ts, c, a, f))
-        self.worker.error.connect(lambda msg: self.error_callback and self.error_callback(msg))
+        self.worker.tick.connect(self._on_tick)
+        self.worker.error.connect(self._on_error)
         self.worker.start()
 
     def stop(self):
-        if self.worker:
-            self.worker.stop(); self.worker.wait(); self.worker = None
-        if self.db:
-            self.db.close(); self.db = None
+        logger.info("Stop source requested")
+        try:
+            if self.worker:
+                self.worker.stop()
+                self.worker.wait(2000)
+        finally:
+            if self.db:
+                self.db.close()
+            self.worker = None
+            self.db = None
+
+    def _on_tick(self, ts, cnt, is_anom, forecast):
+        if self.update_callback:
+            try:
+                self.update_callback(ts, cnt, is_anom, forecast)
+            except Exception as e:
+                logger.exception(f"Update callback error: {e}")
+
+    def _on_error(self, msg: str):
+        logger.error(msg)
+        if self.error_callback:
+            try:
+                self.error_callback(msg)
+            except Exception:
+                logger.exception("Error callback failed")

@@ -7,6 +7,7 @@ import pyqtgraph as pg
 from collections import deque
 import time
 import math
+from core.logger import logger
 
 
 class IntAxis(pg.AxisItem):
@@ -151,6 +152,7 @@ class PlotWindow(QDialog):
         self.show_info(f"Polling will change to {int(v)}s after the current cycle.")
         # then emit to whoever is listening (main window/worker)
         self.poll_changed.emit(int(v))
+        logger.info(f"Plot polling change -> {int(v)}s")
 
     def _retick(self, x_ts):
         """Relax grid/ticks based on current time span (in seconds)."""
@@ -199,6 +201,7 @@ class PlotWindow(QDialog):
         # Current value readout
         cur_txt = int(value) if float(value).is_integer() else round(float(value), 2)
         self.current_label.setText(f"Current: {cur_txt}")
+        logger.debug(f"Plot add_point | ts={timestamp} val={value} anom={is_anomaly} fc={forecast}")
 
     def closeEvent(self, event):
         self.closed.emit()

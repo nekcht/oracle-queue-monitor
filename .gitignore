@@ -26,3 +26,6 @@ Thumbs.db
 
 # Project-specific
 settings.json
+# Logs
+logs/
+*.log

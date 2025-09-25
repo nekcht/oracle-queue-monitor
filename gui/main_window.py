@@ -2,6 +2,7 @@
 from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon, QPixmap
+from core.logger import logger
 from core import __version__
 from core.config_manager import AppConfig
 from core.monitor_controller import MonitorController
@@ -56,6 +57,7 @@ class MainWindow(QMainWindow):
         self.centralWidget().layout().setContentsMargins(self._left_pad, self._left_pad, self._left_pad, self._left_pad)
 
         self._refresh_sources_view()
+        logger.info(f"App started v{__version__}")
 
     def _init_ui(self):
         central = QWidget()
@@ -219,6 +221,8 @@ class MainWindow(QMainWindow):
         self._refresh_sources_view()
 
     def on_start(self):
+        logger.info("START clicked")
+
         sources = self.config.get("sources") or []
         if not sources:
             QMessageBox.warning(self, "No Sources", "Add at least one source.")
@@ -292,6 +296,7 @@ class MainWindow(QMainWindow):
         )
 
     def on_stop(self):
+        logger.info("STOP clicked")
         # stop all
         for sid in list(self.controllers.keys()):
             self._stop_source(sid)

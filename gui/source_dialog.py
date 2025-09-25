@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QSpinBox,
     QDialogButtonBox, QPlainTextEdit
 )
+from core.logger import logger
 
 
 class SourceDialog(QDialog):
