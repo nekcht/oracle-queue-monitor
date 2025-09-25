@@ -395,3 +395,4 @@ class MainWindow(QMainWindow):
             self.on_stop()
         finally:
             super().closeEvent(e)
+            logger.info(f"Application EXIT")

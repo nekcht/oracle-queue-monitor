@@ -69,7 +69,7 @@ class MonitorController(QObject):
         self.db = None
         self.detector = AnomalyDetector(
             window_size=int(self.config.get('window_size') or 20),
-            k=float(self.config.get('k_upper') or 3.0)
+            k_upper=float(self.config.get('k_upper') or 3.0)
         )
         self.worker = None
 
